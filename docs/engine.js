@@ -16,12 +16,34 @@
   const URL_RE = new RegExp(
     "(?:https?://|www\\.)[^\\s<>\"'()]+" +
     "|(?<![@\\w.-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+(?:" + TLD_LIST + ")\\b(?:/[^\\s<>\"'()]*)?", "gi");
-  const SENDER_RE = /^\s*(?:from|de|expediteur|exp[ée]diteur|envoy[ée] par)\s*:\s*(.+)$/gim;
+  const SENDER_RE = /^\s*(?:from|sender|de|expediteur|exp[ée]diteur|envoyeur|envoy[ée] par)\s*:\s*(.+)$/gim;
+  const CONF = P.confusables;
+  const PHONE = new RegExp(P.phoneRe), CALL = new RegExp(P.callWords), SUPPORT = new RegExp(P.supportWords);
+  const GENERIC = P.genericSender.map(p => new RegExp(p, "m"));
+  const unDisguise = t => Array.from(t, c => CONF[c] || c).join("");
+  const LOOKALIKE_RANGES = [[0x0370, 0x03FF], [0x0400, 0x052F], [0x0530, 0x058F], [0x13A0, 0x13FF]];
+  const isLookalikeScript = c => { const o = c.codePointAt(0); return LOOKALIKE_RANGES.some(([a, b]) => o >= a && o <= b); };
+  const isLatin = c => /[a-z]/i.test(c);
+
+  function disguisedLetters(text) {
+    let mixed = 0;
+    for (const word of text.match(/\p{L}+/gu) || []) {
+      const chars = Array.from(word);
+      if (chars.some(isLatin) && chars.some(c => CONF[c])) mixed++;
+    }
+    const all = Array.from(text);
+    const fakes = all.filter(c => CONF[c]).length;
+    const letters = all.filter(c => /\p{L}/u.test(c)).length;
+    const latin = all.filter(isLatin).length;
+    const other = all.filter(c => isLookalikeScript(c) && !CONF[c]).length;
+    const mostlyFake = fakes >= 8 && latin >= 0.15 * letters && other <= fakes * 0.2;
+    return mixed >= 2 || mostlyFake;
+  }
   const EMAIL_RE = /[\w.+-]+@([\w-]+(?:\.[\w-]+)+)/;
 
   const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const normalize = t => t.replace(/’/g, "'").replace(/ /g, " ")
-    .normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const normalize = t => unDisguise(t.replace(/\u2019/g, "'").replace(/\u00a0/g, " "))
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   function extractUrls(text) {
     const out = [];
@@ -83,15 +105,24 @@
   }
 
   function analyze(text) {
-    text = (text || "").trim();
-    const norm = normalize(text);
+    const rawText = (text || "").trim();
+    const norm = normalize(rawText);
+    text = unDisguise(rawText);
     const raw = [];
+    if (disguisedLetters(rawText))
+      raw.push(["disguised_letters", 6, "Le message est écrit avec des lettres déguisées (alphabets étrangers qui imitent nos lettres) pour tromper les filtres anti-arnaque. Un vrai organisme ne fait jamais ça."]);
     for (const t of TEXT) if (t.res.some(r => r.test(norm))) raw.push([t.id, t.weight, t.reason]);
     const ids = new Set(raw.map(s => s[0]));
     if (FAMILY.test(norm) && ["new_number", "broken_phone", "move_to_whatsapp"].some(i => ids.has(i)))
       raw.push(["family_impersonation", 2, "Le message se fait passer pour un proche. Appelez-le sur son numéro habituel."]);
 
+    if (PHONE.test(text) && CALL.test(norm) &&
+        (["unrequested_change", "urgency", "threat"].some(i => ids.has(i)) || SUPPORT.test(norm)))
+      raw.push(["callback", 3, "Le message vous pousse à appeler un numéro qu'il donne lui-même. Au bout du fil, un escroc se fait passer pour le service client."]);
+
     const urls = extractUrls(text), brands = detectBrands(norm);
+    if (!brands.length && GENERIC.some(r => r.test(norm)))
+      raw.push(["vague_sender", 1, "Le message ne dit pas clairement quelle entreprise l'envoie (« Account Team », « Service client »)."]);
     raw.push(...linkSignals(urls));
     if (urls.length && brands.length) {
       const hosts = urls.map(hostOf);
@@ -132,6 +163,7 @@
       L.push("• Ne donnez jamais de code, mot de passe ou numéro de carte.");
       if (ids.has("family_impersonation") || ids.has("new_number"))
         L.push("• Appelez votre proche sur son numéro HABITUEL avant de faire quoi que ce soit.");
+      if (ids.has("callback") || ids.has("premium_number")) L.push("• N'appelez PAS le numéro donné dans le message.");
       if (ids.has("remote_access")) L.push("• Raccrochez et n'installez aucune application demandée.");
       if (r.brands.length) L.push(`• En cas de doute, contactez ${r.brands[0]} vous-même, avec le numéro ou le site que vous connaissez déjà.`);
       L.push(reportLine(channel));
