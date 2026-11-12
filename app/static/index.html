@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vérif'Arnaque</title>
+<style>
+  :root { --bg:#fbfaf7; --ink:#1d1d1b; --muted:#55524c; --line:#d9d4ca; --accent:#1f5f8b;
+          --red:#b3261e; --red-bg:#fdecea; --orange:#8a4b00; --orange-bg:#fff3e0; --green:#1e6b34; --green-bg:#e8f5ec; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:20px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:2rem; margin:0 0 4px; }
+  .lead { color:var(--muted); margin:0 0 24px; }
+  label { display:block; font-weight:700; margin:20px 0 8px; }
+  textarea { width:100%; min-height:180px; font:inherit; padding:14px; border:2px solid var(--line); border-radius:12px; background:#fff; }
+  textarea:focus, button:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+  button { font:inherit; font-weight:700; border:0; border-radius:12px; padding:16px 24px; cursor:pointer; background:var(--accent); color:#fff; min-height:56px; }
+  button.secondary { background:#fff; color:var(--accent); border:2px solid var(--accent); }
+  .or { color:var(--muted); margin:24px 0 0; }
+  #result { margin-top:28px; padding:20px; border-radius:14px; white-space:pre-wrap; display:none; border:2px solid; }
+  #result.danger { display:block; background:var(--red-bg); border-color:var(--red); }
+  #result.suspect { display:block; background:var(--orange-bg); border-color:var(--orange); }
+  #result.no_signs { display:block; background:var(--green-bg); border-color:var(--green); }
+  #result.info { display:block; background:#fff; border-color:var(--line); }
+  footer { margin-top:40px; font-size:.9rem; color:var(--muted); }
+  input[type=file] { position:absolute; left:-9999px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Vérif'Arnaque</h1>
+  <p class="lead">Un message vous semble bizarre ? Vérifiez-le ici, gratuitement, avant de cliquer.</p>
+
+  <label for="msg">Collez le message ici</label>
+  <textarea id="msg" placeholder="Exemple : Votre colis est en attente, réglez 1,99 € ..."></textarea>
+  <div class="row">
+    <button id="check">Vérifier ce message</button>
+  </div>
+
+  <p class="or">Ou envoyez une capture d'écran :</p>
+  <div class="row">
+    <button class="secondary" id="pick">Choisir une capture d'écran</button>
+    <input type="file" id="file" accept="image/png,image/jpeg,image/webp">
+  </div>
+
+  <div id="result" role="status" aria-live="polite"></div>
+
+  <footer>
+    Vérif'Arnaque est une aide, pas une garantie. Nous ne conservons pas vos messages.<br>
+    Déjà cliqué ou payé ? Appelez votre banque, puis <strong>cybermalveillance.gouv.fr</strong>.
+  </footer>
+</main>
+<script>
+  const out = document.getElementById("result");
+  function show(text, level) { out.className = level || "info"; out.textContent = text; out.scrollIntoView({behavior:"smooth"}); }
+
+  async function post(url, body) {
+    show("Vérification en cours…");
+    try {
+      const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) });
+      const data = await r.json();
+      if (!r.ok) return show(data.detail || "Une erreur est survenue. Réessayez.");
+      show(data.reply, data.level);
+    } catch (e) { show("Impossible de joindre le service. Vérifiez votre connexion."); }
+  }
+
+  document.getElementById("check").onclick = () => {
+    const text = document.getElementById("msg").value.trim();
+    if (!text) return show("Collez d'abord le message à vérifier dans la case.");
+    post("/api/check", { text, channel:"unknown" });
+  };
+
+  const file = document.getElementById("file");
+  document.getElementById("pick").onclick = () => file.click();
+  file.onchange = () => {
+    const f = file.files[0]; if (!f) return;
+    if (f.size > 5_000_000) return show("Cette image est trop lourde (5 Mo maximum).");
+    const reader = new FileReader();
+    reader.onload = () => post("/api/check-image", { image_base64: reader.result.split(",")[1], media_type: f.type });
+    reader.readAsDataURL(f);
+  };
+</script>
+</body>
+</html>
