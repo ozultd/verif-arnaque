@@ -27,6 +27,11 @@ data = {
     "shorteners": sorted(patterns.URL_SHORTENERS),
     "suspiciousTlds": sorted(patterns.SUSPICIOUS_TLDS),
     "freeWebmails": sorted(patterns.FREE_WEBMAILS),
+    "confusables": patterns.CONFUSABLES,
+    "phoneRe": patterns.PHONE_RE,
+    "callWords": patterns.CALL_WORDS,
+    "supportWords": patterns.SUPPORT_WORDS,
+    "genericSender": patterns.GENERIC_SENDER,
 }
 
 out = ROOT / "docs" / "patterns.js"
