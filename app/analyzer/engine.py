@@ -7,7 +7,8 @@ import unicodedata
 from dataclasses import dataclass, field
 
 from . import links, llm
-from .patterns import BRANDS, FAMILY_WORDS, TEXT_SIGNALS
+from .patterns import (BRANDS, CALL_WORDS, CONFUSABLES, FAMILY_WORDS, GENERIC_SENDER, PHONE_RE,
+                       SUPPORT_WORDS, TEXT_SIGNALS)
 
 DANGER, SUSPECT, NO_SIGNS = "danger", "suspect", "no_signs"
 _RANK = {NO_SIGNS: 0, SUSPECT: 1, DANGER: 2}
@@ -44,8 +45,34 @@ class Result:
         }
 
 
+_LOOKALIKE_RANGES = [(0x0370, 0x03FF), (0x0400, 0x052F), (0x0530, 0x058F), (0x13A0, 0x13FF)]
+
+
+def _is_lookalike_script(c: str) -> bool:
+    o = ord(c)
+    return any(a <= o <= b for a, b in _LOOKALIKE_RANGES)
+
+
+def disguised_letters(text: str) -> bool:
+    """True when Latin words are written with look-alike letters from other alphabets."""
+    mixed = 0
+    for word in re.findall(r"[^\W\d_]+", text):
+        has_latin = any("a" <= c.lower() <= "z" for c in word)
+        has_fake = any(c in CONFUSABLES for c in word)
+        if has_latin and has_fake:
+            mixed += 1
+    fakes = sum(1 for c in text if c in CONFUSABLES)
+    letters = sum(1 for c in text if c.isalpha())
+    latin = sum(1 for c in text if "a" <= c.lower() <= "z")
+    other_script = sum(1 for c in text if _is_lookalike_script(c) and c not in CONFUSABLES)
+    # Many look-alikes, real Latin around them, and barely any genuine foreign letters
+    mostly_fake = fakes >= 8 and latin >= 0.15 * letters and other_script <= fakes * 0.2
+    return mixed >= 2 or mostly_fake
+
+
 def normalize(text: str) -> str:
     text = text.replace("’", "'").replace(" ", " ")
+    text = "".join(CONFUSABLES.get(c, c) for c in text)
     text = unicodedata.normalize("NFKD", text)
     return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
@@ -59,9 +86,17 @@ def detect_brands(norm: str) -> list[str]:
 
 
 def analyze(text: str, *, use_llm: bool = True, use_network: bool = True) -> Result:
-    text = (text or "").strip()
-    norm = normalize(text)
+    raw_text = (text or "").strip()
+    norm = normalize(raw_text)
+    # Links, phone numbers and senders are read from the de-disguised text
+    text = "".join(CONFUSABLES.get(c, c) for c in raw_text)
     signals: list[Signal] = []
+
+    # 0. Letters disguised with other alphabets: legitimate senders never do this
+    if disguised_letters(raw_text):
+        signals.append(Signal("disguised_letters", 6,
+                              "Le message est écrit avec des lettres déguisées (alphabets étrangers qui imitent nos lettres) "
+                              "pour tromper les filtres anti-arnaque. Un vrai organisme ne fait jamais ça."))
 
     # 1. Wording
     for sid, weight, patterns, why in _COMPILED:
@@ -72,9 +107,21 @@ def analyze(text: str, *, use_llm: bool = True, use_network: bool = True) -> Res
         signals.append(Signal("family_impersonation", 2,
                               "Le message se fait passer pour un proche. Appelez-le sur son numéro habituel."))
 
+    # Callback scam: "a change was requested, call our support now at <number>"
+    phones = re.findall(PHONE_RE, text)
+    if phones and re.search(CALL_WORDS, norm) and (
+        ids & {"unrequested_change", "urgency", "threat"} or re.search(SUPPORT_WORDS, norm)
+    ):
+        signals.append(Signal("callback", 3,
+                              "Le message vous pousse à appeler un numéro qu'il donne lui-même. "
+                              "Au bout du fil, un escroc se fait passer pour le service client."))
+
     # 2. Links
     urls = links.extract_urls(text)
     brands = detect_brands(norm)
+    if not brands and any(re.search(p, norm, re.M) for p in GENERIC_SENDER):
+        signals.append(Signal("vague_sender", 1,
+                              "Le message ne dit pas clairement quelle entreprise l'envoie (« Account Team », « Service client »)."))
     for sid, weight, why in links.link_signals(urls):
         signals.append(Signal(sid, weight, why))
     if urls and brands:
@@ -151,6 +198,8 @@ def format_reply(result: Result, channel: str = "unknown") -> str:
         lines.append("• Ne donnez jamais de code, mot de passe ou numéro de carte.")
         if "family_impersonation" in ids or "new_number" in ids:
             lines.append("• Appelez votre proche sur son numéro HABITUEL avant de faire quoi que ce soit.")
+        if "callback" in ids or "premium_number" in ids:
+            lines.append("• N'appelez PAS le numéro donné dans le message.")
         if "remote_access" in ids:
             lines.append("• Raccrochez et n'installez aucune application demandée.")
         if result.brands:

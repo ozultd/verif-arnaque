@@ -27,7 +27,7 @@ URL_RE = re.compile(
 )
 EMAIL_RE = re.compile(r"[\w.+-]+@([\w-]+(?:\.[\w-]+)+)")
 SENDER_LINE_RE = re.compile(
-    r"^\s*(?:from|de|expediteur|exp[ée]diteur|envoy[ée] par)\s*:\s*(.+)$",
+    r"^\s*(?:from|sender|de|expediteur|exp[ée]diteur|envoyeur|envoy[ée] par)\s*:\s*(.+)$",
     re.IGNORECASE | re.MULTILINE,
 )
 
