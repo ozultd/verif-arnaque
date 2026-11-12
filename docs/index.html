@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vérif'Arnaque</title>
+<meta name="description" content="Service gratuit pour vérifier si un SMS ou un email est une arnaque, avant de cliquer.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+<style>
+  :root { --bg:#fbfaf7; --card:#fff; --ink:#1d1d1b; --muted:#55524c; --line:#d9d4ca; --accent:#1f5f8b; --accent-ink:#fff;
+          --red:#b3261e; --red-bg:#fdecea; --orange:#8a4b00; --orange-bg:#fff3e0; --green:#1e6b34; --green-bg:#e8f5ec; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#151514; --card:#1f1f1d; --ink:#f2f0eb; --muted:#b9b4aa; --line:#3a3833; --accent:#7cb8e4; --accent-ink:#0d1b26;
+            --red:#ff8a80; --red-bg:#3a1a18; --orange:#ffb74d; --orange-bg:#3a2a12; --green:#81c995; --green-bg:#16301f; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:20px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:28px 16px 64px; }
+  h1 { font-size:2.1rem; line-height:1.15; margin:0 0 6px; }
+  h2 { font-size:1.3rem; margin:40px 0 10px; }
+  .lead { color:var(--muted); margin:0 0 24px; }
+  label.big { display:block; font-weight:700; margin:20px 0 8px; }
+  textarea { width:100%; min-height:190px; font:inherit; padding:14px; border:2px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); }
+  textarea:focus, button:focus-visible, input:focus-visible + span { outline:3px solid var(--accent); outline-offset:2px; }
+  fieldset { border:0; padding:0; margin:16px 0 0; }
+  legend { font-weight:700; margin-bottom:8px; }
+  .choices { display:flex; gap:10px; flex-wrap:wrap; }
+  .choices label { position:relative; }
+  .choices input { position:absolute; opacity:0; }
+  .choices span { display:inline-block; padding:12px 18px; border:2px solid var(--line); border-radius:999px; background:var(--card); cursor:pointer; min-height:52px; }
+  .choices input:checked + span { border-color:var(--accent); background:var(--accent); color:var(--accent-ink); font-weight:700; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
+  button { font:inherit; font-weight:700; border:0; border-radius:12px; padding:16px 26px; cursor:pointer; background:var(--accent); color:var(--accent-ink); min-height:58px; }
+  button.secondary { background:transparent; color:var(--accent); border:2px solid var(--accent); }
+  #result { margin-top:28px; padding:20px; border-radius:14px; white-space:pre-wrap; display:none; border:3px solid; font-size:1.05rem; }
+  #result.danger { display:block; background:var(--red-bg); border-color:var(--red); }
+  #result.suspect { display:block; background:var(--orange-bg); border-color:var(--orange); }
+  #result.no_signs { display:block; background:var(--green-bg); border-color:var(--green); }
+  #result.info { display:block; background:var(--card); border-color:var(--line); }
+  .note { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-top:16px; }
+  ol { padding-left:1.3em; } li { margin:6px 0; }
+  footer { margin-top:44px; font-size:.9rem; color:var(--muted); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🛡️ Vérif'Arnaque</h1>
+  <p class="lead">Un SMS ou un email vous semble bizarre ? Vérifiez-le ici, gratuitement, <strong>avant de cliquer</strong>.</p>
+
+  <label class="big" for="msg">1. Collez le message ici</label>
+  <textarea id="msg" placeholder="Exemple : Votre colis est en attente, réglez 1,99 € ..."></textarea>
+
+  <fieldset>
+    <legend>2. C'est un…</legend>
+    <div class="choices">
+      <label><input type="radio" name="ch" value="sms" checked><span>SMS</span></label>
+      <label><input type="radio" name="ch" value="email"><span>Email</span></label>
+      <label><input type="radio" name="ch" value="unknown"><span>Je ne sais pas</span></label>
+    </div>
+  </fieldset>
+
+  <div class="row">
+    <button id="check">3. Vérifier ce message</button>
+    <button class="secondary" id="clear">Effacer</button>
+  </div>
+
+  <div id="result" role="status" aria-live="polite"></div>
+
+  <div class="note">🔒 Votre message reste sur votre appareil : il n'est envoyé nulle part.</div>
+
+  <h2>Comment copier un SMS ?</h2>
+  <ol>
+    <li>Ouvrez le SMS et <strong>appuyez longtemps</strong> sur le message (sans toucher le lien).</li>
+    <li>Choisissez <strong>Copier</strong>.</li>
+    <li>Revenez ici, appuyez longtemps dans la case blanche, puis <strong>Coller</strong>.</li>
+  </ol>
+
+  <h2>Les 3 règles d'or</h2>
+  <ol>
+    <li>Un organisme sérieux ne vous demande <strong>jamais</strong> un code, un mot de passe ou un numéro de carte par SMS ou email.</li>
+    <li>Plus un message est <strong>urgent</strong>, plus il faut se méfier.</li>
+    <li>En cas de doute, appelez vous-même l'organisme, avec le numéro que vous connaissez déjà.</li>
+  </ol>
+
+  <footer>
+    Vérif'Arnaque est une aide, pas une garantie. Déjà cliqué ou payé ? Appelez votre banque,
+    puis <a href="https://www.cybermalveillance.gouv.fr" rel="noopener">cybermalveillance.gouv.fr</a>.<br>
+    Projet libre et gratuit — <a href="https://github.com/ozultd/verif-arnaque" rel="noopener">code source</a>.
+  </footer>
+</main>
+<script src="patterns.js"></script>
+<script src="engine.js"></script>
+<script>
+  const out = document.getElementById("result");
+  const msg = document.getElementById("msg");
+  function show(text, level) { out.className = level || "info"; out.textContent = text; out.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  document.getElementById("check").onclick = () => {
+    const text = msg.value.trim();
+    if (!text) return show("Collez d'abord le message à vérifier dans la case blanche.");
+    const channel = document.querySelector("input[name=ch]:checked").value;
+    const r = VerifArnaque.analyze(text);
+    show(VerifArnaque.formatReply(r, channel), r.level);
+  };
+  document.getElementById("clear").onclick = () => { msg.value = ""; out.className = ""; out.textContent = ""; msg.focus(); };
+</script>
+</body>
+</html>
