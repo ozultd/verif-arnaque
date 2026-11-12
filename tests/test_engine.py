@@ -69,3 +69,19 @@ def test_llm_can_escalate(monkeypatch):
                         lambda t: {"verdict": "danger", "reasons": ["Arnaque au faux héritage"]})
     result = analyze("Bonjour, je suis notaire, vous heritez de 2 millions.", use_network=False)
     assert result.level == DANGER and result.llm_reasons
+
+
+def test_disguised_letters_are_flagged_alone():
+    ids = {s.id for s in run("Неllо, уоur ассоunt іѕ rеаdу. Тһаnk уоu fоr уоur оrdеr tоdау.").signals}
+    assert "disguised_letters" in ids
+
+
+def test_real_foreign_alphabets_are_not_disguised():
+    for text in ["Привет, мама! Как дела?", "Καλημέρα! Τι κάνεις;", "Barev, ինչպե՞ս ես։"]:
+        assert "disguised_letters" not in {s.id for s in run(text).signals}, text
+
+
+def test_callback_reply_says_not_to_call():
+    text = "Si vous n'etes pas a l'origine, appelez immediatement le 01 86 76 54 32."
+    reply = format_reply(run(text), "sms")
+    assert "N'appelez PAS" in reply

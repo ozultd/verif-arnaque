@@ -45,6 +45,25 @@ SCAMS = [
     ("crypto",
      "Félicitations ! Investissez 250€ en bitcoin avec un rendement garanti de 30% par mois.",
      "suspect"),
+    ("lettres deguisees (cas reel signale)",
+     "sender: fm@elocaso.com.py\n"
+     "Υоur рһоոе ոumbеr сһаոgе rеquеѕt һаѕ bееո rесеіvеd.\n"
+     "Ѕtаtuѕ: Реոdіոg Rеvіеw\nΝеw Рһоոе Νumbеr: +1 ХХХ ХХХ-2531\n"
+     "Ꭰіd ոоt rеquеѕt tһіѕ сһаոgе?\n"
+     "Соոtасt оur ѕuрроrt tеаm іmmеdіаtеlу аt +1 (866) 237-7918.\n"
+     "Веѕt rеgаrdѕ,\nАссоuոt Теаm",
+     "danger"),
+    ("rappel support en anglais (sans lettres deguisees)",
+     "Your phone number change request has been received. Did not request this change? "
+     "Contact our support team immediately at +1 (866) 237-7918. Best regards, Account Team",
+     "danger"),
+    ("rappel support en francais",
+     "Une demande de changement de numero a ete enregistree sur votre compte. "
+     "Si vous n'etes pas a l'origine, appelez immediatement notre service securite au 01 86 76 54 32.",
+     "danger"),
+    ("paypal anglais",
+     "PayPal: Your account has been suspended. Verify your account within 24 hours: https://paypal-secure-login.top/verify",
+     "danger"),
     ("numero surtaxe",
      "Vous avez un colis en attente. Rappelez le 0899 23 45 67 pour fixer un rendez-vous.",
      "suspect"),
@@ -55,5 +74,9 @@ LEGIT = [
     ("dentiste", "Bonjour, rappel de votre RDV chez le Dr Martin demain a 10h. Cabinet dentaire du Lac."),
     ("famille", "Coucou maman, on arrive vers 19h dimanche, je ramène le dessert !"),
     ("pharmacie", "Pharmacie des Alpes : votre commande est prete. Bonne journee."),
+    ("rdv avec numero", "Votre RDV du 14/11 est confirme. Pour annuler, appelez le cabinet au 04 50 12 34 56."),
+    ("alerte banque legitime", "Connexion inhabituelle detectee sur votre compte. Si ce n'est pas vous, connectez-vous a votre espace client habituel."),
+    ("message en russe", "Привет, мама! Как дела? Мы приедем в субботу вечером."),
+    ("message en grec", "Καλημέρα! Θα έρθουμε το Σάββατο το βράδυ."),
     ("vrai lien ameli", "Assurance Maladie : un nouveau document est disponible dans votre compte sur ameli.fr"),
 ]
